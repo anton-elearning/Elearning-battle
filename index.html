@@ -1,0 +1,1603 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Кибер-симулятор</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #171a21;
+    --blue: #6b73ff;
+    --purple: #7c3fe0;
+    --correct: #00ffcc;
+    --wrong: #ff3366;
+    --text-main: #e2e8f0;
+    --text-muted: #94a3b8;
+    --font: 'Jura', sans-serif;
+    --mono: 'Share Tech Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background-color: var(--bg);
+    background-image:
+      linear-gradient(rgba(107,115,255,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(107,115,255,0.06) 1px, transparent 1px);
+    background-size: 40px 40px;
+    color: var(--text-main);
+    font-family: var(--font);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+    padding: 30px 16px;
+    overflow-x: hidden;
+  }
+
+  .scanline {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 10px;
+    background: rgba(107,115,255,0.12);
+    opacity: 0.5;
+    animation: scan 6s linear infinite;
+    pointer-events: none;
+    z-index: 9999;
+    box-shadow: 0 0 12px rgba(107,115,255,0.4);
+  }
+  @keyframes scan { 0%{top:-10px} 100%{top:100%} }
+
+  .app {
+    width: 100%;
+    max-width: 880px;
+    background: rgba(23,26,33,0.82);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(107,115,255,0.28);
+    border-radius: 10px;
+    padding: 36px 32px;
+    position: relative;
+    box-shadow: 0 0 40px rgba(0,0,0,0.6), inset 0 0 24px rgba(124,63,224,0.05);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .app::before {
+    content:''; position:absolute; top:-2px; left:-2px;
+    width:34px; height:34px;
+    border-top:2px solid var(--blue); border-left:2px solid var(--blue);
+    box-shadow:-4px -4px 14px rgba(107,115,255,0.3);
+  }
+  .app::after {
+    content:''; position:absolute; bottom:-2px; right:-2px;
+    width:34px; height:34px;
+    border-bottom:2px solid var(--purple); border-right:2px solid var(--purple);
+    box-shadow:4px 4px 14px rgba(124,63,224,0.3);
+  }
+
+  /* Slides */
+  .slide { display: none; flex-grow: 1; flex-direction: column; justify-content: center; }
+  .slide.active { display: flex; animation: fadeIn .4s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+  h2 {
+    font-family: var(--mono);
+    font-size: 1.6rem;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 28px;
+    background: linear-gradient(90deg, var(--blue), var(--purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* === DIFFICULTY CARDS === */
+  .difficulty-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-bottom: 28px;
+  }
+  .diff-card {
+    background: rgba(107,115,255,0.07);
+    backdrop-filter: blur(6px);
+    border: 1px dashed rgba(107,115,255,0.35);
+    border-radius: 10px;
+    padding: 18px 10px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .diff-card:hover {
+    background: rgba(107,115,255,0.14);
+    border-color: var(--blue);
+    box-shadow: 0 0 18px rgba(107,115,255,0.3);
+  }
+  .diff-card.selected {
+    border: 2px solid var(--correct);
+    box-shadow: 0 0 20px rgba(0,255,204,0.25);
+  }
+  .diff-card h3 {
+    font-family: var(--mono);
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 14px;
+    color: var(--text-main);
+  }
+  .diff-card img {
+    width: 100px; height: 100px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 2px solid rgba(107,115,255,0.4);
+    background: #606060;
+    display: block;
+  }
+
+  /* === ACTION BUTTON === */
+  .action-btn {
+    display: block;
+    width: 33.33%;
+    min-width: 220px;
+    margin: 0 auto;
+    background: rgba(107,115,255,0.1);
+    backdrop-filter: blur(6px);
+    border: 2px solid var(--purple);
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 1rem;
+    padding: 14px 20px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+    border-radius: 6px;
+    position: relative;
+    overflow: hidden;
+    transition: all .3s ease;
+    box-shadow: 0 0 14px rgba(124,63,224,0.2);
+    text-align: center;
+  }
+  .action-btn::before {
+    content:''; position:absolute; top:0; left:-100%;
+    width:100%; height:100%;
+    background: linear-gradient(90deg, transparent, rgba(107,115,255,0.35), transparent);
+    transition: left .5s ease;
+  }
+  .action-btn:hover { background:rgba(124,63,224,0.22); box-shadow:0 0 28px rgba(124,63,224,0.5); border-color:var(--blue); }
+  .action-btn:hover::before { left:100%; }
+  .action-btn:disabled { opacity:.4; cursor:not-allowed; pointer-events:none; }
+
+  /* === TOPIC GRID === */
+  .topics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
+    margin-top: 10px;
+  }
+  .topic-btn {
+    background: rgba(107,115,255,0.1);
+    backdrop-filter: blur(8px);
+    border: 2px dashed rgba(107,115,255,0.4);
+    border-radius: 12px;
+    padding: 15px 20px;
+    min-height: 120px;
+    display: flex; align-items: center; justify-content: center;
+    text-align: center;
+    color: var(--text-main);
+    font-family: var(--font);
+    font-size: 1.3rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .3s;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  }
+  .topic-btn:hover { background:rgba(107,115,255,0.22); border: 2px solid var(--blue); box-shadow:0 0 18px rgba(107,115,255,0.4); transform: translateY(-3px); }
+
+  /* === QUIZ SCREEN === */
+  .quiz-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(107,115,255,0.2);
+    padding-bottom: 14px;
+    margin-bottom: 22px;
+  }
+  .q-counter { font-family: var(--mono); font-size: 1rem; color: var(--text-muted); }
+  .scoreboard {
+    font-family: var(--mono);
+    font-size: 1rem;
+    display: flex; gap: 18px;
+    background: rgba(0,0,0,0.25);
+    padding: 6px 14px;
+    border: 1px dashed rgba(124,63,224,0.5);
+    border-radius: 6px;
+  }
+  .score-label { color: var(--text-muted); }
+  .score-val {
+    font-size: 1.4rem; font-weight: bold;
+    background: linear-gradient(90deg, var(--blue), var(--purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .question-text {
+    font-size: 1.25rem;
+    line-height: 1.6;
+    margin-bottom: 22px;
+  }
+
+  .options-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 22px; }
+
+  .opt-label {
+    background: rgba(23,26,33,0.6);
+    backdrop-filter: blur(6px);
+    border: 1px dashed rgba(107,115,255,0.4);
+    border-radius: 8px;
+    padding: 14px 18px;
+    cursor: pointer;
+    display: flex; align-items: center;
+    font-size: 1.05rem;
+    line-height: 1.5;
+    position: relative;
+    transition: all .25s;
+  }
+  .opt-label:hover { background:rgba(107,115,255,0.12); border-color:var(--blue); }
+  .opt-label.selected { background:rgba(107,115,255,0.18); border-color:var(--blue); box-shadow:inset 0 0 10px rgba(107,115,255,0.2); }
+  .opt-label.correct { background:rgba(0,255,204,0.08)!important; border:2px solid var(--correct)!important; box-shadow:0 0 14px rgba(0,255,204,0.25); }
+  .opt-label.wrong   { background:rgba(255,51,102,0.08)!important; border:2px solid var(--wrong)!important;   box-shadow:0 0 14px rgba(255,51,102,0.25); }
+
+  .opt-label input { margin-right:14px; transform:scale(1.3); accent-color:var(--blue); cursor:pointer; flex-shrink:0; }
+
+  .badge {
+    position:absolute; top:-11px;
+    padding:3px 9px; border-radius:4px;
+    font-family:var(--mono); font-size:.75rem; font-weight:bold;
+    display:none; color:#fff; text-transform:uppercase; letter-spacing:1px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.5);
+  }
+  .badge-user { background:var(--blue); border:1px solid var(--purple); right:14px; }
+  .badge-bot  { background:var(--wrong); border:1px solid #cc2244; right:75px; }
+
+  /* === ROUND ANALYTICS === */
+  .round-box {
+    margin-top: 22px;
+    background: rgba(0,0,0,0.35);
+    border: 1px dashed rgba(107,115,255,0.35);
+    border-radius: 8px;
+    padding: 22px 20px;
+    text-align: center;
+    display: none;
+  }
+  .round-box img {
+    width: 150px; height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid rgba(107,115,255,0.6);
+    margin-bottom: 16px;
+    background: #606060;
+    box-shadow: 0 0 20px rgba(107,115,255,0.4);
+  }
+  .round-box p { color: var(--text-muted); font-size: 1rem; line-height: 1.5; margin-bottom: 16px; }
+
+  /* === FINAL SCREEN === */
+  .final-winner {
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 1.8rem;
+    margin-bottom: 18px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .final-scores {
+    text-align: center;
+    font-size: 1.15rem;
+    margin-bottom: 28px;
+    line-height: 1.9;
+  }
+
+  /* Responsive */
+  @media(max-width:600px){
+    .app {
+    width: 100%;
+    max-width: 880px;
+    background: rgba(23,26,33,0.82);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(107,115,255,0.28);
+    border-radius: 10px;
+    padding: 36px 32px;
+    position: relative;
+    box-shadow: 0 0 40px rgba(0,0,0,0.6), inset 0 0 24px rgba(124,63,224,0.05);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+    h2 { font-size:1.2rem; }
+    .difficulty-grid { grid-template-columns: repeat(3,1fr); gap:10px; }
+    .diff-card img { width:70px; height:70px; }
+    .action-btn { width:80%; min-width:180px; }
+    .question-text { font-size:1.05rem; }
+    .opt-label { font-size:.95rem; padding:12px 14px; }
+    .score-val { font-size:1.1rem; }
+  }
+  /* ==========================================================
+   ACADEMY ATTACHE — THEME OVERRIDE
+   Только визуальное оформление Cyber Simulator.
+   Вопросы, банк данных, уровни бота и JavaScript не меняются.
+   ========================================================== */
+
+:root {
+    --bg: #f4efe6;
+    --paper: #fbf8f0;
+    --paper-deep: #f2ecdf;
+    --ink: #20272e;
+    --text-main: #2b3035;
+    --text-muted: #7a6e5d;
+    --gold: #b69a70;
+    --gold-dark: #8c785d;
+    --line: rgba(126, 105, 76, 0.28);
+    --line-light: rgba(126, 105, 76, 0.17);
+    --correct: #2e6b43;
+    --correct-bg: #eaf2eb;
+    --wrong: #8d3434;
+    --wrong-bg: #fbeded;
+    --font: "Cormorant Garamond", Georgia, serif;
+    --mono: "Inter", Arial, sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    min-height: 100%;
+    margin: 0;
+}
+
+body {
+    display: block;
+    min-height: 100vh;
+    padding: clamp(16px, 3vw, 38px);
+    overflow-x: hidden;
+
+    color: var(--text-main);
+    background:
+        radial-gradient(
+            circle at 14% 4%,
+            rgba(255, 255, 255, 0.95) 0,
+            rgba(255, 255, 255, 0) 31%
+        ),
+        linear-gradient(135deg, #fbf8f0 0%, #f2ecdf 100%);
+    font-family: var(--font);
+}
+
+/* Убираем неоновую скан-линию, которая выбивалась из стиля Академии */
+.scanline {
+    display: none;
+}
+
+/* Основная панель тренажера */
+.app {
+    width: min(100%, 980px);
+    min-height: calc(100vh - clamp(32px, 6vw, 76px));
+    margin: 0 auto;
+    padding: clamp(30px, 5vw, 58px) clamp(22px, 5vw, 68px);
+
+    color: var(--text-main);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background:
+        radial-gradient(
+            circle at 12% 8%,
+            rgba(255, 255, 255, 0.98) 0,
+            rgba(255, 255, 255, 0) 34%
+        ),
+        linear-gradient(135deg, #fbf8f0 0%, #f5f0e5 100%);
+    box-shadow:
+        0 22px 65px rgba(51, 42, 28, 0.18),
+        0 1px 0 rgba(255, 255, 255, 0.9) inset;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* Убираем кибер-углы */
+.app::before,
+.app::after {
+    display: none;
+}
+
+/* Анимация смены экранов сохраняется, но становится мягче */
+.slide {
+    animation: academySlideIn 0.38s ease both;
+}
+
+@keyframes academySlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Главные заголовки */
+h2,
+.final-winner {
+    margin: 0 0 30px;
+    color: var(--ink);
+    background: none;
+    -webkit-background-clip: initial;
+    -webkit-text-fill-color: currentColor;
+
+    font-family: var(--font);
+    font-size: clamp(34px, 5vw, 52px);
+    font-weight: 500;
+    line-height: 1.04;
+    letter-spacing: -0.02em;
+    text-align: center;
+    text-transform: none;
+}
+
+/* Тонкая визуальная линия под заголовками первых экранов */
+#slide-diff > h2::after,
+#slide-topics > h2::after,
+#slide-final > h2::after {
+    display: block;
+    width: min(150px, 42%);
+    height: 1px;
+    margin: 18px auto 0;
+    background: var(--gold);
+    content: "";
+}
+
+/* Текстовые элементы */
+p,
+.question-text {
+    color: var(--text-main);
+    font-family: var(--font);
+}
+
+.question-text {
+    margin-bottom: 24px;
+    font-size: clamp(22px, 2.5vw, 29px);
+    font-weight: 500;
+    line-height: 1.34;
+}
+
+/* Карточки уровней сложности */
+.difficulty-grid {
+    gap: 14px;
+    margin: 6px 0 30px;
+}
+
+.diff-card {
+    min-height: 218px;
+    padding: 24px 14px 22px;
+
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.58);
+    box-shadow: 0 5px 16px rgba(74, 60, 39, 0.05);
+}
+
+.diff-card:hover {
+    border-color: var(--gold);
+    background: #ffffff;
+    box-shadow: 0 10px 24px rgba(86, 67, 40, 0.12);
+    transform: translateY(-2px);
+}
+
+.diff-card.selected {
+    border: 2px solid var(--gold-dark);
+    background: #fffdf8;
+    box-shadow:
+        0 0 0 3px rgba(182, 154, 112, 0.15),
+        0 10px 24px rgba(86, 67, 40, 0.12);
+}
+
+.diff-card h3 {
+    margin: 0 0 14px;
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+}
+
+.diff-card img {
+    width: 108px;
+    height: 108px;
+    border: 2px solid rgba(182, 154, 112, 0.62);
+    box-shadow: 0 5px 14px rgba(74, 60, 39, 0.14);
+}
+
+/* Универсальная академическая кнопка */
+.action-btn {
+    width: auto;
+    min-width: 220px;
+    margin: 0 auto;
+    padding: 13px 30px;
+
+    color: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 4px;
+    background: transparent;
+    box-shadow: none;
+
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    line-height: 1.2;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.action-btn::before {
+    display: none;
+}
+
+.action-btn:hover:not(:disabled) {
+    color: var(--paper);
+    border-color: var(--ink);
+    background: var(--ink);
+    box-shadow: 0 6px 18px rgba(32, 39, 46, 0.16);
+    transform: translateY(-1px);
+}
+
+.action-btn:disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+}
+
+/* Экран выбора темы */
+.topics-grid {
+    gap: 12px;
+    margin-top: 4px;
+}
+
+.topic-btn {
+    min-height: 118px;
+    padding: 18px 22px;
+
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.58);
+    box-shadow: 0 4px 14px rgba(74, 60, 39, 0.05);
+
+    font-family: var(--font);
+    font-size: clamp(20px, 2.3vw, 27px);
+    font-weight: 600;
+    line-height: 1.15;
+}
+
+.topic-btn:hover {
+    color: var(--ink);
+    border: 1px solid var(--gold-dark);
+    background: #ffffff;
+    box-shadow: 0 10px 22px rgba(86, 67, 40, 0.12);
+    transform: translateY(-2px);
+}
+
+/* Верхняя панель раунда */
+.quiz-header {
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--line);
+}
+
+.q-counter,
+.scoreboard,
+.score-label,
+.score-val {
+    font-family: var(--mono);
+}
+
+.q-counter {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.scoreboard {
+    gap: 13px;
+    padding: 7px 12px;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.55);
+}
+
+.score-label {
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.score-val {
+    color: var(--ink);
+    background: none;
+    -webkit-background-clip: initial;
+    -webkit-text-fill-color: currentColor;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+/* Варианты ответов */
+.options-list {
+    gap: 10px;
+    margin-bottom: 24px;
+}
+
+.opt-label {
+    min-height: 58px;
+    padding: 14px 18px;
+
+    color: var(--text-main);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.68);
+    box-shadow: none;
+
+    font-family: var(--font);
+    font-size: clamp(18px, 2vw, 22px);
+    font-weight: 500;
+    line-height: 1.3;
+}
+
+.opt-label:hover {
+    border-color: var(--gold);
+    background: #fffdf8;
+}
+
+.opt-label.selected {
+    border-color: var(--gold-dark);
+    background: #f4eee3;
+    box-shadow: inset 0 0 0 1px rgba(182, 154, 112, 0.18);
+}
+
+.opt-label input {
+    margin-right: 14px;
+    accent-color: var(--gold-dark);
+}
+
+/* Результаты хода: JavaScript продолжает назначать эти классы */
+.opt-label.correct {
+    color: #1b3d22 !important;
+    border: 1px solid #b2d3b8 !important;
+    background: var(--correct-bg) !important;
+    box-shadow: none !important;
+}
+
+.opt-label.wrong {
+    color: #611a1a !important;
+    border: 1px solid #e7bebe !important;
+    background: var(--wrong-bg) !important;
+    box-shadow: none !important;
+}
+
+/* Метки «вы» и «бот» */
+.badge {
+    top: -9px;
+    padding: 3px 8px;
+
+    color: #ffffff;
+    border-radius: 3px;
+    box-shadow: none;
+
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+.badge-user {
+    right: 13px;
+    border: 1px solid #49545e;
+    background: #49545e;
+}
+
+.badge-bot {
+    right: 69px;
+    border: 1px solid #8d3434;
+    background: #8d3434;
+}
+
+/* Блок разбора раунда */
+.round-box {
+    margin-top: 26px;
+    padding: 25px 24px;
+
+    color: var(--text-main);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: #f6f1e8;
+    text-align: center;
+}
+
+.round-box img {
+    width: 132px;
+    height: 132px;
+    margin-bottom: 15px;
+
+    border: 2px solid rgba(182, 154, 112, 0.76);
+    box-shadow: 0 6px 16px rgba(74, 60, 39, 0.14);
+}
+
+.round-box p {
+    margin: 0 0 18px;
+    color: var(--text-main);
+    font-size: clamp(19px, 2.1vw, 24px);
+    line-height: 1.35;
+}
+
+/* Финальный экран */
+.final-winner {
+    margin-bottom: 16px;
+    font-size: clamp(32px, 4.7vw, 50px);
+}
+
+.final-scores {
+    margin-bottom: 30px;
+    padding: 20px 24px;
+
+    color: var(--text-main);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+
+    font-family: var(--font);
+    font-size: clamp(21px, 2.4vw, 28px);
+    line-height: 1.55;
+    text-align: center;
+}
+
+#final-u {
+    color: var(--correct) !important;
+}
+
+#final-b {
+    color: var(--wrong) !important;
+}
+
+/* Переопределяем встроенный оранжевый цвет ничьей */
+#final-title[style*="ff9800"] {
+    color: var(--gold-dark) !important;
+}
+
+/* Убираем неоновые outline-эффекты на клавиатурной навигации */
+button:focus-visible,
+input:focus-visible {
+    outline: 2px solid var(--gold-dark);
+    outline-offset: 3px;
+}
+
+/* Адаптация под телефоны */
+@media (max-width: 600px) {
+    body {
+        padding: 10px;
+    }
+
+    .app {
+        min-height: calc(100vh - 20px);
+        padding: 28px 18px;
+        border-radius: 14px;
+    }
+
+    .difficulty-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+
+    .diff-card {
+        min-height: 168px;
+        padding: 15px 7px;
+    }
+
+    .diff-card img {
+        width: 64px;
+        height: 64px;
+    }
+
+    .diff-card h3 {
+        font-size: 9px;
+        letter-spacing: 0.07em;
+    }
+
+    .action-btn {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .topic-btn {
+        min-height: 94px;
+        padding: 14px;
+    }
+
+    .quiz-header {
+        align-items: flex-start;
+        gap: 12px;
+        flex-direction: column;
+    }
+
+    .scoreboard {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .opt-label {
+        padding: 13px 14px;
+    }
+
+    .badge-bot {
+        right: 58px;
+    }
+
+    .round-box {
+        padding: 20px 16px;
+    }
+}
+/* Экран выбора базы не используется в поединковом режиме */
+#slide-topics {
+    display: none !important;
+}
+</style>
+</head>
+<body>
+<div class="scanline"></div>
+<div class="app">
+
+  <!-- СЛАЙД 1: УРОВЕНЬ СЛОЖНОСТИ -->
+  <div id="slide-diff" class="slide active">
+    <h2>Выберите уровень сложности</h2>
+    <div class="difficulty-grid">
+      <div class="diff-card" id="card-light" onclick="pickDifficulty('Light','card-light')">
+        <h3>Light</h3>
+        <img src="https://static.tildacdn.com/tild6233-6532-4961-a533-346365646137/pers3wrong.png" alt="Light">
+      </div>
+      <div class="diff-card" id="card-medium" onclick="pickDifficulty('Medium','card-medium')">
+        <h3>Medium</h3>
+        <img src="https://static.tildacdn.com/tild3531-6533-4334-b136-326563353865/pers1wrong.png" alt="Medium">
+      </div>
+      <div class="diff-card" id="card-super" onclick="pickDifficulty('Super','card-super')">
+        <h3>Super</h3>
+        <img src="https://static.tildacdn.com/tild3238-3837-4031-b261-326362393937/pers2wrong.png" alt="Super">
+      </div>
+    </div>
+    <button class="action-btn" id="btn-start" disabled onclick="startBattle()">
+    Начать поединок
+</button>
+  </div>
+
+  <!-- СЛАЙД 2: ВЫБОР ТЕМЫ -->
+  <div id="slide-topics" class="slide">
+    <h2>Выбор базы данных</h2>
+    <div class="topics-grid" id="topics-grid"></div>
+  </div>
+
+  <!-- СЛАЙД 3: ПОЕДИНОК -->
+  <div id="slide-quiz" class="slide">
+    <div class="quiz-header">
+      <div class="q-counter">Вопрос <span id="q-num">1</span> / <span id="q-total">10</span></div>
+      <div class="scoreboard">
+        <div><span class="score-label">ВЫ: </span><span class="score-val" id="score-u">0</span></div>
+        <div><span class="score-label">СОПЕРНИК: </span><span class="score-val" id="score-b">0</span></div>
+      </div>
+    </div>
+    <div class="question-text" id="question-text"></div>
+    <div class="options-list" id="options-list"></div>
+    <button class="action-btn" id="btn-confirm" disabled onclick="submitAnswer()">Подтвердить ответ</button>
+    <div class="round-box" id="round-box">
+      <img id="bot-reaction" src="" alt="Bot">
+      <p id="round-desc"></p>
+      <button class="action-btn" onclick="nextQuestion()">Следующий вопрос</button>
+    </div>
+  </div>
+
+  <!-- СЛАЙД 4: ФИНАЛ -->
+  <div id="slide-final" class="slide">
+    <h2>Поединок завершен</h2>
+    <div class="final-winner" id="final-title"></div>
+    <div class="final-scores">
+      Ваш счёт: <strong id="final-u" style="color:var(--correct)">0</strong><br>
+      Счёт соперника: <strong id="final-b" style="color:var(--wrong)">0</strong>
+    </div>
+        <button class="action-btn" onclick="location.reload()">Начать заново</button>
+    
+  </div>
+
+</div><!-- /.app -->
+
+<script>
+// ============================================================
+// БАНК ВОПРОСОВ ИЗ ИСХОДНИКА
+// ============================================================
+const allBanks = {
+    "Поединок Академии": [
+        {
+                "text": "Кто считается основоположником андрагогики — науки об обучении взрослых?",
+                "options": [
+                        {
+                                "text": "Роберт Ганье",
+                                "correct": false
+                        },
+                        {
+                                "text": "Малкольм Ноулз",
+                                "correct": true
+                        },
+                        {
+                                "text": "Бенджамин Блум",
+                                "correct": false
+                        },
+                        {
+                                "text": "Герберт Саймон",
+                                "correct": false
+                        }
+                ]
+        },
+        {
+                "text": "Какие принципы обучения взрослых выделил Малкольм Ноулз? (Выберите все верные варианты)",
+                "options": [
+                        {
+                                "text": "Опора на прошлый жизненный опыт учащегося",
+                                "correct": true
+                        },
+                        {
+                                "text": "Полный внешний контроль учебного графика со стороны преподавателя",
+                                "correct": false
+                        },
+                        {
+                                "text": "Практическая ориентация на решение актуальной проблемы",
+                                "correct": true
+                        },
+                        {
+                                "text": "Потребность в понимании смысла и практической пользы обучения",
+                                "correct": true
+                        }
+                ]
+        },
+        {
+                "text": "Какое из девяти событий преподавания Роберта Ганье является самым первым шагом в учебном процессе?",
+                "options": [
+                        {
+                                "text": "Информирование о целях обучения",
+                                "correct": false
+                        },
+                        {
+                                "text": "Привлечение внимания",
+                                "correct": true
+                        },
+                        {
+                                "text": "Повторение изученного материала",
+                                "correct": false
+                        },
+                        {
+                                "text": "Предоставление обратной связи",
+                                "correct": false
+                        }
+                ]
+        },
+        {
+                "text": "Какая классическая теория обучения утверждает, что учащийся не пассивно усваивает готовые знания, а самостоятельно конструирует их при взаимодействии со средой?",
+                "options": [
+                        {
+                                "text": "Бихевиоризм",
+                                "correct": false
+                        },
+                        {
+                                "text": "Конструктивизм",
+                                "correct": true
+                        },
+                        {
+                                "text": "Когнитивизм",
+                                "correct": false
+                        },
+                        {
+                                "text": "Ассоцианизм",
+                                "correct": false
+                        }
+                ]
+        },
+        {
+                "text": "Что означает этап Implementation в классической линейной модели педагогического дизайна ADDIE?",
+                "options": [
+                        {
+                                "text": "Анализ потребностей целевой аудитории и определение целей",
+                                "correct": false
+                        },
+                        {
+                                "text": "Создание сценария и верстка интерактивных заданий",
+                                "correct": false
+                        },
+                        {
+                                "text": "Реализация: прохождение курса студентами и применение знаний на практике",
+                                "correct": true
+                        },
+                        {
+                                "text": "Итоговая оценка эффективности образовательной программы",
+                                "correct": false
+                        }
+                ]
+        },
+        {
+                "text": "В чем заключается ключевая особенность модели педагогического дизайна SAM в сравнении с классической ADDIE?",
+                "options": [
+                        {
+                                "text": "Она строго линейна и исключает внесение изменений после проектирования",
+                                "correct": false
+                        },
+                        {
+                                "text": "Она циклическая: черновой прототип создается в начале пути и дорабатывается итерациями",
+                                "correct": true
+                        },
+                        {
+                                "text": "Она исключает этап тестирования курса пользователями",
+                                "correct": false
+                        },
+                        {
+                                "text": "Она применяется исключительно для создания видеокурсов",
+                                "correct": false
+                        }
+                ]
+        },
+        {
+                "text": "Какие компоненты входят в модель 4C/ID (four-component instructional design)? (Выберите все верные варианты)",
+                "options": [
+                        {
+                                "text": "Учебные задачи (симуляции проблемных ситуаций)",
+                                "correct": true
+                        },
+                        {
+                                "text": "Вспомогательная информация (теория для понимания области)",
+                                "correct": true
+                        },
+                        {
+                                "text": "Процедурная информация (пошаговые алгоритмы и инструкции)",
+                                "correct": true
+                        },
+                        {
+                                "text": "Строгий административный контроль посещаемости",
+                                "correct": false
+                        }
+                ]
+        },
+        {
+                "text": "Какова правильная последовательность 5 шагов дизайн-мышления по алгоритму Герберта Саймона?",
+                "options": [
+                        {
+                                "text": "Фокусировка → Эмпатия → Генерация идей → Тестирование → Прототипирование",
+                                "correct": false
+                        },
+                        {
+                                "text": "Эмпатия → Фокусировка → Генерация идей → Прототипирование → Тестирование",
+                                "correct": true
+                        },
+                        {
+                                "text": "Генерация идей → Эмпатия → Прототипирование → Фокусировка → Тестирование",
+                                "correct": false
+                        },
+                        {
+                                "text": "Прототипирование → Эмпатия → Фокусировка → Генерация идей → Тестирование",
+                                "correct": false
+                        }
+                ]
+        },
+        {
+                "text": "Что олицетворяет собой «корень» в графическом инструменте педагогического дизайна «Дерево навыков»?",
+                "options": [
+                        {
+                                "text": "Основные базовые навыки",
+                                "correct": false
+                        },
+                        {
+                                "text": "Общую образовательную цель",
+                                "correct": true
+                        },
+                        {
+                                "text": "Узкие прикладные операции",
+                                "correct": false
+                        },
+                        {
+                                "text": "Список рекомендуемой литературы",
+                                "correct": false
+                        }
+                ]
+        },
+        {
+                "text": "Какие категории когнитивных целей входят в классическую таксономию Блума? (Выберите все верные варианты)",
+                "options": [
+                        {
+                                "text": "Запоминание",
+                                "correct": true
+                        },
+                        {
+                                "text": "Понимание",
+                                "correct": true
+                        },
+                        {
+                                "text": "Анализ",
+                                "correct": true
+                        },
+                        {
+                                "text": "Автоматизация движений",
+                                "correct": false
+                        }
+                ]
+        },
+        {
+                "text": "Какой конструктор курсов работает как надстройка над Microsoft PowerPoint и тесно интегрирован с LMS iSpring Learn?",
+                "options": [
+                        {
+                                "text": "Articulate Rise",
+                                "correct": false
+                        },
+                        {
+                                "text": "iSpring Suite",
+                                "correct": true
+                        },
+                        {
+                                "text": "CourseLab",
+                                "correct": false
+                        },
+                        {
+                                "text": "Tilda Publishing",
+                                "correct": false
+                        }
+                ]
+        },
+        {
+                "text": "Какой инструмент из пакета Articulate 360 представляет собой облачный редактор для быстрой блочной сборки адаптивных курсов-лонгридов?",
+                "options": [
+                        {
+                                "text": "Articulate Storyline",
+                                "correct": false
+                        },
+                        {
+                                "text": "Articulate Rise",
+                                "correct": true
+                        },
+                        {
+                                "text": "CourseLab",
+                                "correct": false
+                        },
+                        {
+                                "text": "Scroll",
+                                "correct": false
+                        }
+                ]
+        },
+        {
+                "text": "Какие из перечисленных сервисов специализируются на подборе шрифтов и шрифтовых пар? (Выберите все верные варианты)",
+                "options": [
+                        {
+                                "text": "Google Fonts",
+                                "correct": true
+                        },
+                        {
+                                "text": "Fontpair",
+                                "correct": true
+                        },
+                        {
+                                "text": "Coverr",
+                                "correct": false
+                        },
+                        {
+                                "text": "Fontjoy",
+                                "correct": true
+                        }
+                ]
+        },
+        {
+                "text": "Для решения какой задачи разработчик курсов чаще всего использует сервисы Colormind и Colorinspo?",
+                "options": [
+                        {
+                                "text": "Удаление фона с фотографий спикеров",
+                                "correct": false
+                        },
+                        {
+                                "text": "Подбор гармоничных цветовых палитр",
+                                "correct": true
+                        },
+                        {
+                                "text": "Генерация синтетической дикторской озвучки",
+                                "correct": false
+                        },
+                        {
+                                "text": "Очистка текста от словесного мусора",
+                                "correct": false
+                        }
+                ]
+        },
+        {
+                "text": "Какие сервисы используются разработчиком для поиска стоковых иконок? (Выберите все верные варианты)",
+                "options": [
+                        {
+                                "text": "Flaticon",
+                                "correct": true
+                        },
+                        {
+                                "text": "Iconmonstr",
+                                "correct": true
+                        },
+                        {
+                                "text": "Zvukogram",
+                                "correct": false
+                        },
+                        {
+                                "text": "Waifu2x",
+                                "correct": false
+                        }
+                ]
+        },
+        {
+                "text": "Какие задачи входят в базовый рабочий цикл разработчика электронных курсов? (Выберите все верные варианты)",
+                "options": [
+                        {
+                                "text": "Брифинг заказчика, сбор и методическая переработка материала",
+                                "correct": true
+                        },
+                        {
+                                "text": "Написание сценария и проектирование проверочных заданий",
+                                "correct": true
+                        },
+                        {
+                                "text": "Бухгалтерский аудит организации заказчика",
+                                "correct": false
+                        },
+                        {
+                                "text": "Верстка курса в авторском средстве разработки и анализ обратной связи",
+                                "correct": true
+                        }
+                ]
+        },
+        {
+                "text": "В чем заключается суть стратегии проблемного обучения в электронном курсе?",
+                "options": [
+                        {
+                                "text": "Студент механически заучивает готовые формулировки терминов",
+                                "correct": false
+                        },
+                        {
+                                "text": "Обучение строится вокруг решения реальной задачи, в ходе которого студент сам добывает теорию",
+                                "correct": true
+                        },
+                        {
+                                "text": "Студенту транслируются видеолекции без проверочных заданий",
+                                "correct": false
+                        },
+                        {
+                                "text": "Студенты соревнуются исключительно на скорость прохождения тестирования",
+                                "correct": false
+                        }
+                ]
+        },
+        {
+                "text": "Какие методы подходят для анализа потребностей и запросов целевой аудитории курса? (Выберите все верные варианты)",
+                "options": [
+                        {
+                                "text": "Анкетирование и опросы представителей целевой аудитории",
+                                "correct": true
+                        },
+                        {
+                                "text": "Проведение фокус-групп и интервью",
+                                "correct": true
+                        },
+                        {
+                                "text": "Анализ отраслевых трендов и поисковых запросов",
+                                "correct": true
+                        },
+                        {
+                                "text": "Интуитивное определение без контакта с аудиторией",
+                                "correct": false
+                        }
+                ]
+        },
+        {
+                "text": "Какая мотивация направлена не на достижение поставленных личных целей и победу, а на недопущение поражения и ошибок?",
+                "options": [
+                        {
+                                "text": "Мотивация достижения успеха",
+                                "correct": false
+                        },
+                        {
+                                "text": "Мотивация избегания неудач",
+                                "correct": true
+                        },
+                        {
+                                "text": "Когнитивная автономия",
+                                "correct": false
+                        },
+                        {
+                                "text": "Внешняя статусная фиксация",
+                                "correct": false
+                        }
+                ]
+        },
+        {
+                "text": "Какие навыки относятся к ключевым Hard Skills разработчика электронных курсов? (Выберите все верные варианты)",
+                "options": [
+                        {
+                                "text": "Владение авторскими средствами разработки (Authoring Tools)",
+                                "correct": true
+                        },
+                        {
+                                "text": "Понимание принципов педагогического дизайна и образовательных моделей",
+                                "correct": true
+                        },
+                        {
+                                "text": "Умение проектировать слайдовые курсы, лонгриды и тесты",
+                                "correct": true
+                        },
+                        {
+                                "text": "Управление складской логистикой предприятия",
+                                "correct": false
+                        }
+                ]
+        }
+]
+};
+
+// ============================================================
+// КАРТИНКИ ПЕРСОНАЖЕЙ
+// ============================================================
+const BOT_IMGS = {
+  Light: {
+    avatar:     'https://static.tildacdn.com/tild6233-6532-4961-a533-346365646137/pers3wrong.png',
+    win:        'https://static.tildacdn.com/tild3737-3066-4163-b164-346465396361/pers3win.png',
+    lose:       'https://static.tildacdn.com/tild3761-6431-4066-b538-663762666263/pers3lose.png',
+    tie_wrong:  'https://static.tildacdn.com/tild6233-6532-4961-a533-346365646137/pers3wrong.png',
+    tie_correct:'https://static.tildacdn.com/tild3538-3035-4661-b032-323238383033/pers3correct.png'
+  },
+  Medium: {
+    avatar:     'https://static.tildacdn.com/tild6235-3339-4235-b362-333566626434/lose2.png',
+    win:        'https://static.tildacdn.com/tild6366-6564-4061-b931-323636623033/pers1win.png',
+    lose:       'https://static.tildacdn.com/tild3662-3762-4265-a139-623362323333/pers1_lose.png',
+    tie_wrong:  'https://static.tildacdn.com/tild3531-6533-4334-b136-326563353865/pers1wrong.png',
+    tie_correct:'https://static.tildacdn.com/tild3531-6166-4037-b762-386234636433/pers1_correct.png'
+  },
+  Super: {
+    avatar:     'https://static.tildacdn.com/tild6536-3365-4532-b434-613664336237/pers2lose.png',
+    win:        'https://static.tildacdn.com/tild3739-3366-4330-b464-393230313330/pers2win.png',
+    lose:       'https://static.tildacdn.com/tild6536-3365-4532-b434-613664336237/pers2lose.png',
+    tie_wrong:  'https://static.tildacdn.com/tild3238-3837-4031-b261-326362393937/pers2wrong.png',
+    tie_correct:'https://static.tildacdn.com/tild3133-6233-4563-b933-356434333534/pers2correct.png'
+  }
+};
+
+// ============================================================
+// СОСТОЯНИЕ
+// ============================================================
+const BATTLE_TOPIC = "Поединок Академии";
+let difficulty = '';
+let botAccuracy = 0;
+let questions = [];
+let qIndex = 0;
+let scoreUser = 0;
+let scoreBot = 0;
+let answered = false;
+
+// ============================================================
+// СЛАЙД 1 — ВЫБОР СЛОЖНОСТИ
+// ============================================================
+function pickDifficulty(level, cardId) {
+  difficulty = level;
+  botAccuracy = level === 'Light' ? 0.35 : level === 'Medium' ? 0.65 : 0.85;
+
+  document.querySelectorAll('.diff-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById(cardId).classList.add('selected');
+  document.getElementById('btn-start').disabled = false;
+}
+
+function startBattle() {
+    startQuiz(BATTLE_TOPIC);
+}
+function goTopics() {
+  showSlide('slide-topics');
+  const grid = document.getElementById('topics-grid');
+  grid.innerHTML = '';
+  Object.keys(allBanks).forEach(topic => {
+    const btn = document.createElement('button');
+    btn.className = 'topic-btn';
+    btn.textContent = topic;
+    btn.onclick = () => startQuiz(topic);
+    grid.appendChild(btn);
+  });
+}
+
+// ============================================================
+// СЛАЙД 2 — ТЕМА → СЛАЙД 3
+// ============================================================
+function startQuiz(topic) {
+  questions = JSON.parse(JSON.stringify(allBanks[topic]));
+  shuffle(questions);
+  questions.forEach(q => shuffle(q.options));
+  qIndex = 0; scoreUser = 0; scoreBot = 0;
+  showSlide('slide-quiz');
+  loadQuestion();
+}
+
+// ============================================================
+// СЛАЙД 3 — ВОПРОС
+// ============================================================
+function loadQuestion() {
+  answered = false;
+  document.getElementById('round-box').style.display = 'none';
+
+  const btn = document.getElementById('btn-confirm');
+  btn.style.display = 'block';
+  btn.disabled = true;
+
+  const q = questions[qIndex];
+  document.getElementById('q-num').textContent   = qIndex + 1;
+  document.getElementById('q-total').textContent = questions.length;
+  document.getElementById('question-text').innerHTML = q.text;
+
+  const correctCount = q.options.filter(o => o.correct).length;
+  const inputType = correctCount > 1 ? 'checkbox' : 'radio';
+
+  const list = document.getElementById('options-list');
+  list.innerHTML = '';
+
+  q.options.forEach((opt, idx) => {
+    const lbl = document.createElement('label');
+    lbl.className = 'opt-label';
+    lbl.id = 'ol-' + idx;
+    lbl.setAttribute('onclick', ''); // iOS Safari fix
+
+    const inp = document.createElement('input');
+    inp.type = inputType;
+    inp.name = 'qopt';
+    inp.value = idx;
+    inp.onclick = e => {
+      if (answered) return;
+      e.stopPropagation();
+      setTimeout(() => {
+        document.querySelectorAll('.opt-label').forEach(l => {
+          l.classList.toggle('selected', !!l.querySelector('input').checked);
+        });
+        btn.disabled = document.querySelectorAll('input[name="qopt"]:checked').length === 0;
+      }, 10);
+    };
+
+    const txt  = document.createElement('span');
+    txt.innerHTML = opt.text;
+
+    const bu = document.createElement('span');
+    bu.className = 'badge badge-user';
+    bu.id = 'bu-' + idx;
+    bu.textContent = 'ВЫ';
+
+    const bb = document.createElement('span');
+    bb.className = 'badge badge-bot';
+    bb.id = 'bb-' + idx;
+    bb.textContent = 'СОПЕРНИК';
+
+    lbl.append(inp, txt, bu, bb);
+    list.appendChild(lbl);
+  });
+}
+
+function submitAnswer() {
+  if (answered) return;
+  answered = true;
+
+  const q = questions[qIndex];
+  const correctIdx = q.options.map((o,i) => o.correct ? i : -1).filter(i => i >= 0);
+
+  const inputs = document.querySelectorAll('input[name="qopt"]');
+  const userIdx = [];
+  inputs.forEach((inp,i) => { if(inp.checked) userIdx.push(i); inp.disabled = true; });
+
+  document.getElementById('btn-confirm').style.display = 'none';
+
+  const isUserOk = userIdx.length === correctIdx.length && userIdx.every(v => correctIdx.includes(v));
+
+  // Bot decision
+  let botIdx = [];
+  if (Math.random() <= botAccuracy) {
+    botIdx = [...correctIdx];
+  } else {
+    const wrong = q.options.map((_,i) => i).filter(i => !correctIdx.includes(i));
+    botIdx = wrong.length ? [wrong[Math.floor(Math.random() * wrong.length)]] : [...correctIdx];
+  }
+  const isBotOk = botIdx.length === correctIdx.length && botIdx.every(v => correctIdx.includes(v));
+
+  // Visual badges + colours
+  q.options.forEach((_, idx) => {
+    const lbl = document.getElementById('ol-' + idx);
+    if (userIdx.includes(idx)) document.getElementById('bu-' + idx).style.display = 'block';
+    if (botIdx.includes(idx))  document.getElementById('bb-' + idx).style.display = 'block';
+    if (correctIdx.includes(idx)) lbl.classList.add('correct');
+    else if (userIdx.includes(idx) || botIdx.includes(idx)) lbl.classList.add('wrong');
+  });
+
+  // Scores
+  if (isUserOk) scoreUser++;
+  if (isBotOk)  scoreBot++;
+  document.getElementById('score-u').textContent = scoreUser;
+  document.getElementById('score-b').textContent = scoreBot;
+
+  // Analytics
+  const imgs = BOT_IMGS[difficulty];
+  let img, desc;
+  if (isUserOk && !isBotOk) {
+    img = imgs.win;
+    desc = 'Вы правы, а соперник ошибся. +1 балл вам!';
+  } else if (!isUserOk && isBotOk) {
+    img = imgs.lose;
+    desc = 'Соперник оказался точнее. Ваш ответ неверен.';
+  } else if (isUserOk && isBotOk) {
+    img = imgs.tie_correct;
+    desc = 'Оба соперника ответили верно. +1 балл каждому.';
+  } else {
+    img = imgs.tie_wrong;
+    desc = 'Оба соперника ошиблись. Никто не получает балл.';
+  }
+
+  document.getElementById('bot-reaction').src = img;
+  document.getElementById('round-desc').textContent = desc;
+  document.getElementById('round-box').style.display = 'block';
+}
+
+function nextQuestion() {
+  qIndex++;
+  if (qIndex < questions.length) loadQuestion();
+  else showFinal();
+}
+
+// ============================================================
+// СЛАЙД 4 — ФИНАЛ
+// ============================================================
+function showFinal() {
+  showSlide('slide-final');
+  document.getElementById('final-u').textContent = scoreUser;
+  document.getElementById('final-b').textContent = scoreBot;
+
+  const el = document.getElementById('final-title');
+  if (scoreUser > scoreBot) {
+    el.textContent = 'Вы победили соперника!';
+    el.style.color = 'var(--correct)';
+  } else if (scoreUser < scoreBot) {
+    el.textContent = 'Вы проиграли. Желаете сыграть повторно?';
+    el.style.color = 'var(--wrong)';
+  } else {
+    el.textContent = 'Ничья. Желаете сыграть повторно?';
+    el.style.color = '#ff9800';
+  }
+}
+
+// ============================================================
+// УТИЛИТЫ
+// ============================================================
+function showSlide(id) {
+  document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+</script>
+</body>
+</html>
